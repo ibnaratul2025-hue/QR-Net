@@ -1,0 +1,10 @@
+{
+  "name": "QIP — Optical Internet Protocol",
+  "description": "A screen-to-camera programmable optical communication and computing architecture.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

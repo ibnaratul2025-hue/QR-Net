@@ -1,0 +1,39 @@
+name: QIP Web Deployment & Artifacts
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-web:
+    name: Build & Package Web Client
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Web Production SPA
+        run: npm run build
+
+      - name: Package Web Distribution
+        run: |
+          mkdir -p artifacts
+          cd dist && zip -r ../artifacts/qip-web-dist.zip . && cd ..
+          sha256sum artifacts/qip-web-dist.zip > artifacts/qip-web-dist.zip.sha256
+
+      - name: Upload Web Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: qip-web-dist
+          path: artifacts/*
+          retention-days: 14

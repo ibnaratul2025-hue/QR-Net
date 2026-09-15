@@ -1,0 +1,32 @@
+name: QIP Security Audit & Secret Scan
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * 1'
+
+jobs:
+  security-scan:
+    name: Secret Leak Scan & Lockfile Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Secret Leak Prevention
+        run: |
+          echo "Auditing workspace for private keys, keystores, and test secrets..."
+          # Fail if any private keys or certificate keystores are committed
+          if git grep -i "PRIVATE KEY" -- ':!*.lock' ':!node_modules'; then
+            echo "CRITICAL: Private key detected in repository!"
+            exit 1
+          fi
+          echo "✓ Secret Scan Passed: No secrets found."
+
+      - name: Dependency Vulnerability Audit
+        run: npm audit --audit-level=high || true

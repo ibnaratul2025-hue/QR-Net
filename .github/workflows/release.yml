@@ -1,0 +1,64 @@
+name: QIP Automated Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Generate Reproducible Release Manifest
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Tagged Revision
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build Web Application
+        run: |
+          npm ci
+          npm run build
+
+      - name: Generate Release Manifest (qip-release.json)
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          COMMIT="$(git rev-parse HEAD)"
+          TIMESTAMP="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          
+          mkdir -p release-dist
+          cd dist && zip -r ../release-dist/qip-web-${VERSION}.zip . && cd ..
+          
+          WEB_SHA=$(sha256sum release-dist/qip-web-${VERSION}.zip | cut -d ' ' -f 1)
+          
+          cat <<EOF > release-dist/qip-release.json
+          {
+            "version": "${VERSION}",
+            "protocolVersion": "QIP/1.2",
+            "commit": "${COMMIT}",
+            "buildType": "release",
+            "timestamp": "${TIMESTAMP}",
+            "artifacts": [
+              {
+                "name": "qip-web-${VERSION}.zip",
+                "type": "Web Production SPA",
+                "sha256": "${WEB_SHA}"
+              }
+            ]
+          }
+          EOF
+          
+          cat release-dist/qip-release.json
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            release-dist/*
+          generate_release_notes: true
