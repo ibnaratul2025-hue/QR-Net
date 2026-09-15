@@ -8,6 +8,7 @@ on:
     paths:
       - 'android/**'
       - '.github/workflows/android.yml'
+  workflow_dispatch:
 
 jobs:
   build-android:
@@ -22,21 +23,39 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+          cache: 'gradle'
 
-      - name: Verify Android Manifest & Services
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Grant Execute Permission to Gradle Wrapper
+        run: chmod +x android/gradlew || true
+
+      - name: Build Android Debug & Release APK with Gradle
+        working-directory: ./android
         run: |
-          test -f android/app/src/main/AndroidManifest.xml
-          echo "Verified QipForegroundService declaration and Camera permissions."
+          echo "Starting Gradle APK compilation..."
+          if [ -f "./gradlew" ]; then
+            ./gradlew assembleDebug --stacktrace --no-daemon || gradle assembleDebug --stacktrace --no-daemon
+          else
+            gradle assembleDebug --stacktrace --no-daemon
+          fi
 
-      - name: Compute Build Artifact Checksums
+      - name: Locate and Verify Generated APK
         run: |
-          mkdir -p build/outputs/apk
-          echo "Simulated signed release APK for CI testing" > build/outputs/apk/qip-node-release.apk
-          sha256sum build/outputs/apk/qip-node-release.apk
+          mkdir -p artifacts/apk
+          echo "Locating built APKs..."
+          find android/app/build/outputs/apk/ -name "*.apk" -type f -exec cp -v {} artifacts/apk/ \; || true
+          
+          # Check if real APK was produced, display actual size
+          ls -lh artifacts/apk/
+          
+          # Compute sha256 checksums
+          cd artifacts/apk && for f in *.apk; do [ -f "$f" ] && sha256sum "$f" > "$f.sha256"; done && cd ../..
 
-      - name: Upload Android APK
+      - name: Upload Real Android APK
         uses: actions/upload-artifact@v4
         with:
           name: qip-android-apk
-          path: build/outputs/apk/*.apk
+          path: artifacts/apk/*
           retention-days: 14

@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity(), CameraPermissionCallback, QipCameraErr
 
     private lateinit var cameraManager: QipCameraManager
     private lateinit var permissionHandler: QipCameraPermissionHandler
-    private lateinit var lifecycleObserver: QipNodeLifecycleObserver
+    private lateinit var lifecycleObserver: QipCameraLifecycleObserver
 
     // Reactive Compose states
     private val frameMetricsState = mutableStateOf(
@@ -64,9 +64,9 @@ class MainActivity : ComponentActivity(), CameraPermissionCallback, QipCameraErr
         QipCameraErrorHub.registerListener(this)
 
         // 2. Setup Lifecycle Observer for clean background suspension
-        lifecycleObserver = QipNodeLifecycleObserver(
+        lifecycleObserver = QipCameraLifecycleObserver(
             cameraManager = cameraManager,
-            onNodeStateChanged = { isSuspended, reason ->
+            onStateChanged = { isSuspended, reason ->
                 statusMessageState.value = reason
             }
         )

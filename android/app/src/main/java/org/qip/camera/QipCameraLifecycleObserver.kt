@@ -16,7 +16,7 @@ import androidx.lifecycle.LifecycleOwner
 
 class QipCameraLifecycleObserver(
     private val cameraManager: QipCameraManager,
-    private val onStateChanged: ((isSuspended: Boolean) -> Unit)? = null
+    private val onStateChanged: ((isSuspended: Boolean, reason: String) -> Unit)? = null
 ) : DefaultLifecycleObserver {
 
     companion object {
@@ -27,7 +27,7 @@ class QipCameraLifecycleObserver(
         super.onResume(owner)
         Log.i(TAG, "Lifecycle ON_RESUME: Resuming CameraX optical stream analyzer.")
         cameraManager.resumeProcessing()
-        onStateChanged?.invoke(false)
+        onStateChanged?.invoke(false, "Optical camera pipeline resumed in foreground.")
         QipCameraErrorHub.reportError(
             errorCode = "LIFECYCLE_RESUMED",
             severity = CameraErrorSeverity.INFO,
@@ -41,7 +41,7 @@ class QipCameraLifecycleObserver(
         super.onPause(owner)
         Log.i(TAG, "Lifecycle ON_PAUSE: Suspending CameraX optical stream to preserve battery/thermals.")
         cameraManager.pauseProcessing()
-        onStateChanged?.invoke(true)
+        onStateChanged?.invoke(true, "DefaultLifecycleObserver triggered ON_PAUSE: Optical sensors suspended.")
         QipCameraErrorHub.reportError(
             errorCode = "LIFECYCLE_SUSPENDED",
             severity = CameraErrorSeverity.INFO,
