@@ -22,7 +22,11 @@ jobs:
 
       - name: Build Web Application
         run: |
-          npm ci
+          if [ -f package-lock.json ]; then
+            npm ci || npm install
+          else
+            npm install
+          fi
           npm run build
 
       - name: Generate Release Manifest (qip-release.json)

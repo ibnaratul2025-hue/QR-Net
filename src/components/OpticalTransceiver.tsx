@@ -443,12 +443,21 @@ export const OpticalTransceiver: React.FC<OpticalTransceiverProps> = ({
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Camera API (getUserMedia) is not supported in this browser context.');
       }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode, width: { ideal: 1920, min: 640 }, height: { ideal: 1080, min: 480 } },
-      });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode, width: { ideal: 1920, min: 640 }, height: { ideal: 1080, min: 480 } },
+        });
+      } catch (e) {
+        // Fallback to basic unconstrained video if resolution constraints fail or camera is restricted
+        console.warn('High-resolution video constraints failed, falling back to basic video stream', e);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode },
+        });
+      }
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        videoRef.current.play().catch(() => {});
         setIsCameraActive(true);
 
         // Inspect actual hardware video track resolution and frame rate
@@ -480,7 +489,11 @@ export const OpticalTransceiver: React.FC<OpticalTransceiverProps> = ({
       const isBusy = err.name === 'NotReadableError' || err.name === 'TrackStartError';
       const errorCode = isPermission ? 'PERMISSION_DENIED' : isBusy ? 'CAMERAX_ERR_CAMERA_IN_USE' : 'CAMERA_UNAVAILABLE';
       const severity = isPermission || isBusy ? 'CRITICAL' : 'WARNING';
-      const msg = err.message || (isPermission ? 'Camera permission was denied.' : 'Camera hardware is locked by another process.');
+      const msg = isPermission
+        ? 'Camera access was blocked by browser or system permission. Click "Request Camera Permission" or allow access in the address bar.'
+        : isBusy
+        ? 'Camera hardware is locked by another application (Zoom, Teams, or Camera app).'
+        : (err.message || 'Unable to access camera hardware.');
 
       qipCameraHardwareHub.reportHardwareEvent({
         errorCode,
@@ -489,8 +502,9 @@ export const OpticalTransceiver: React.FC<OpticalTransceiverProps> = ({
         message: msg,
         troubleshooting: isPermission
           ? [
-              'Click the camera permission icon in your browser URL bar and choose "Always allow".',
-              'On mobile, check Android Settings > Apps > Chrome/App > Permissions > Camera.',
+              'Click the lock or camera icon in the browser address bar and set Camera to "Allow".',
+              'If running in an embedded preview, click "Open in New Tab" to authorize system camera access.',
+              'On Android devices, navigate to Settings > Apps > Chrome/Browser > Permissions > Camera > Allow.',
             ]
           : [
               'Close any background video apps (Zoom, Teams, Camera app).',
@@ -1191,9 +1205,42 @@ export const OpticalTransceiver: React.FC<OpticalTransceiverProps> = ({
 
               {/* Camera Error Message */}
               {cameraError && (
-                <div className="absolute inset-x-4 bottom-4 bg-rose-950/90 border border-rose-500/50 rounded-lg p-3 text-xs text-rose-200 flex items-center space-x-2">
-                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-                  <span>{cameraError}</span>
+                <div className="absolute inset-x-4 bottom-4 bg-rose-950/95 border border-rose-500/60 rounded-xl p-3 text-xs text-rose-200 shadow-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                      <span className="font-semibold">{cameraError}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-rose-900/60 text-[11px] font-mono">
+                    <button
+                      onClick={() => startCamera()}
+                      className="px-2.5 py-1 bg-rose-900 hover:bg-rose-800 text-rose-100 rounded border border-rose-700 font-bold transition-colors cursor-pointer flex items-center space-x-1"
+                    >
+                      <Camera className="w-3 h-3" />
+                      <span>Retry Camera</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setRxMode('IMAGE_FILE');
+                        setCameraError(null);
+                      }}
+                      className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-cyan-300 rounded border border-slate-700 transition-colors cursor-pointer flex items-center space-x-1"
+                    >
+                      <ImageIcon className="w-3 h-3" />
+                      <span>Switch to Image Upload Scanner</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setRxMode('LOOPBACK');
+                        setCameraError(null);
+                      }}
+                      className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded border border-slate-700 transition-colors cursor-pointer flex items-center space-x-1"
+                    >
+                      <Cpu className="w-3 h-3" />
+                      <span>Virtual Bus Loopback</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

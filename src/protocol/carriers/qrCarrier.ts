@@ -50,8 +50,9 @@ export function decodeQrFromImageData(
   imageData: ImageData
 ): { data: string; location: any } | null {
   try {
-    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-      inversionAttempts: 'dontInvert',
+    // First attempt: standard non-inverted
+    let code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'attemptBoth',
     });
     if (code && code.data) {
       return {
